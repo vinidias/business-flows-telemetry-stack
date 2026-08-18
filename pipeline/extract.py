@@ -166,6 +166,8 @@ def generate_mock_dataset(raw_data_dir: Path) -> dict:
     import datetime
     import random
     
+    raw_data_dir = Path(raw_data_dir)
+    raw_data_dir.mkdir(parents=True, exist_ok=True)
     logger.info("Generating synthetic demo dataset (users, analytics_events, transactions)...")
     now = datetime.datetime.now()
     

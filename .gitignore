@@ -17,12 +17,15 @@ pipeline/analytics/target/
 pipeline/analytics/logs/
 pipeline/analytics/dbt_packages/
 
-# Python
+# Python & Testing
 __pycache__/
 *.py[cod]
 .venv/
 *.egg-info/
 .pytest_cache/
+.coverage
+htmlcov/
+*.user.yml
 
 # OS
 .DS_Store

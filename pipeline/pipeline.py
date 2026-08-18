@@ -113,6 +113,11 @@ def main() -> None:
             "cmd": [python_exe, str(pipeline_dir / "push_metrics.py")],
             "cwd": pipeline_dir,
         },
+        {
+            "name": "5. Generate Local HTML Dashboard",
+            "cmd": [python_exe, str(pipeline_dir / "generate_dashboard.py")],
+            "cwd": pipeline_dir,
+        },
     ]
 
     execution_summary = []
