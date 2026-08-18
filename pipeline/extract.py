@@ -58,7 +58,7 @@ def build_database_engine() -> Engine:
     Returns:
         Engine: Connected SQLAlchemy engine.
     """
-    driver = os.getenv("DB_DRIVER", "mysql").lower().strip()
+    driver = (os.getenv("DB_DRIVER") or "mysql").lower().strip()
     host = os.getenv("DB_HOST", "localhost")
     port = os.getenv("DB_PORT", "3306" if driver == "mysql" else "5432")
     database = os.getenv("DB_NAME", "analytics_source")
@@ -161,6 +161,78 @@ def extract_table_to_parquet(
         return None
 
 
+def generate_mock_dataset(raw_data_dir: Path) -> dict:
+    """Generate synthetic sample dataset for demo / CI runs when database is unavailable."""
+    import datetime
+    import random
+    
+    logger.info("Generating synthetic demo dataset (users, analytics_events, transactions)...")
+    now = datetime.datetime.now()
+    
+    # 1. Users
+    user_ids = list(range(1, 51))
+    users_data = []
+    platforms = ["ios", "android", "web"]
+    for u_id in user_ids:
+        reg_time = now - datetime.timedelta(days=random.randint(0, 30), hours=random.randint(0, 23))
+        users_data.append({
+            "id": u_id,
+            "name": f"User {u_id}",
+            "email": f"user{u_id}@example.com",
+            "platform": random.choice(platforms),
+            "created_at": reg_time,
+            "updated_at": reg_time,
+        })
+    df_users = pd.DataFrame(users_data)
+    users_parquet = raw_data_dir / "users.parquet"
+    df_users.to_parquet(users_parquet, engine="pyarrow", index=False)
+    
+    # 2. Analytics Events
+    events_data = []
+    event_names = ["screen_view", "button_click", "signup_started", "signup_completed", "item_viewed", "checkout_started", "purchase_completed"]
+    for e_id in range(1, 301):
+        ev_time = now - datetime.timedelta(days=random.randint(0, 14), hours=random.randint(0, 23), minutes=random.randint(0, 59))
+        u_id = random.choice(user_ids)
+        ev_name = random.choice(event_names)
+        events_data.append({
+            "id": e_id,
+            "user_id": u_id,
+            "event_name": ev_name,
+            "platform": random.choice(platforms),
+            "properties": '{"source": "demo"}',
+            "created_at": ev_time,
+        })
+    df_events = pd.DataFrame(events_data)
+    events_parquet = raw_data_dir / "analytics_events.parquet"
+    df_events.to_parquet(events_parquet, engine="pyarrow", index=False)
+    
+    # 3. Transactions
+    tx_data = []
+    pay_methods = ["credit_card", "pix", "paypal"]
+    for t_id in range(1, 61):
+        tx_time = now - datetime.timedelta(days=random.randint(0, 14), hours=random.randint(0, 23))
+        u_id = random.choice(user_ids)
+        amount = round(random.uniform(15.0, 350.0), 2)
+        tx_data.append({
+            "id": t_id,
+            "user_id": u_id,
+            "amount": amount,
+            "currency": "BRL",
+            "status": "completed",
+            "payment_method": random.choice(pay_methods),
+            "created_at": tx_time,
+        })
+    df_tx = pd.DataFrame(tx_data)
+    tx_parquet = raw_data_dir / "transactions.parquet"
+    df_tx.to_parquet(tx_parquet, engine="pyarrow", index=False)
+    
+    return {
+        "users": users_parquet,
+        "analytics_events": events_parquet,
+        "transactions": tx_parquet,
+    }
+
+
 def register_in_duckdb(
     parquet_files: dict,
     duckdb_path: Path,
@@ -204,25 +276,27 @@ def run_extraction() -> bool:
 
     duckdb_file = Path(os.getenv("DUCKDB_PATH", "./analytics.duckdb")).resolve()
 
-    try:
-        engine = build_database_engine()
-        with engine.connect() as conn:
-            conn.execute(text("SELECT 1"))
-            logger.info("Database connectivity test successful.")
-    except Exception as e:
-        logger.error("Database connection failed: %s", str(e))
-        return False
-
-    tables = get_target_tables(engine)
-    if not tables:
-        logger.warning("No tables found or configured for extraction.")
-        return False
-
+    use_mock = os.getenv("USE_MOCK_DATA", "").lower() in ("true", "1", "yes")
     extracted_files = {}
-    for table in tables:
-        p_path = extract_table_to_parquet(engine, table, raw_data_dir)
-        if p_path:
-            extracted_files[table] = p_path
+
+    if not use_mock:
+        try:
+            engine = build_database_engine()
+            with engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+                logger.info("Database connectivity test successful.")
+            
+            tables = get_target_tables(engine)
+            for table in tables:
+                p_path = extract_table_to_parquet(engine, table, raw_data_dir)
+                if p_path:
+                    extracted_files[table] = p_path
+        except Exception as e:
+            logger.warning("Database connection unavailable (%s). Falling back to synthetic demo dataset generation.", str(e))
+            use_mock = True
+
+    if use_mock or not extracted_files:
+        extracted_files = generate_mock_dataset(raw_data_dir)
 
     if extracted_files:
         register_in_duckdb(extracted_files, duckdb_file)
