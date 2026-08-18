@@ -249,14 +249,17 @@ def register_in_duckdb(
     
     con = duckdb.connect(str(duckdb_path))
     try:
+        # Ensure 'raw' schema exists for dbt source mapping
+        con.execute("CREATE SCHEMA IF NOT EXISTS raw;")
         for table_name, p_file in parquet_files.items():
             posix_path = p_file.as_posix()
             raw_table_name = f"raw_{table_name}"
-            # Create or replace table directly from Parquet snapshot
+            # Register in both raw schema and default schema for maximum compatibility
+            con.execute(f"CREATE OR REPLACE TABLE raw.{raw_table_name} AS SELECT * FROM read_parquet('{posix_path}');")
             con.execute(f"CREATE OR REPLACE TABLE {raw_table_name} AS SELECT * FROM read_parquet('{posix_path}');")
-            count_result = con.execute(f"SELECT COUNT(*) FROM {raw_table_name};").fetchone()
+            count_result = con.execute(f"SELECT COUNT(*) FROM raw.{raw_table_name};").fetchone()
             count = count_result[0] if count_result else 0
-            logger.info("Registered DuckDB table '%s' with %d rows from '%s'", raw_table_name, count, p_file.name)
+            logger.info("Registered DuckDB table 'raw.%s' with %d rows from '%s'", raw_table_name, count, p_file.name)
     finally:
         con.close()
 
