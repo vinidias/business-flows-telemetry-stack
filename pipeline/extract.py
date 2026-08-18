@@ -294,7 +294,7 @@ def run_extraction() -> bool:
     raw_data_dir = Path(os.getenv("RAW_DATA_PATH", "./data/raw")).resolve()
     raw_data_dir.mkdir(parents=True, exist_ok=True)
 
-    duckdb_file = Path(os.getenv("DUCKDB_PATH", "./analytics.duckdb")).resolve()
+    duckdb_file = Path(os.getenv("DUCKDB_PATH", str(Path(__file__).parent / "analytics.duckdb"))).resolve()
 
     use_mock = os.getenv("USE_MOCK_DATA", "").lower() in ("true", "1", "yes")
     extracted_files = {}

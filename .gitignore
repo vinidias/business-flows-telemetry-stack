@@ -1,6 +1,7 @@
 # Environment files
 pipeline/.env
 pipeline/data/
+pipeline/load_real_data.py
 pipeline/analytics.duckdb
 pipeline/*.duckdb
 

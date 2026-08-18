@@ -2,6 +2,7 @@ version: 2
 
 sources:
   - name: raw
+    schema: main
     description: "Raw relational data snapshots extracted from production database into DuckDB."
     tables:
       - name: raw_users
