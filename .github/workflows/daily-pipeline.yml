@@ -41,7 +41,7 @@ jobs:
           dbt run --profiles-dir .
           dbt test --profiles-dir .
         env:
-          DUCKDB_PATH: ../analytics.duckdb
+          DUCKDB_PATH: ../../analytics.duckdb
 
       - name: Push metrics to Grafana Cloud
         run: python pipeline/push_metrics.py
