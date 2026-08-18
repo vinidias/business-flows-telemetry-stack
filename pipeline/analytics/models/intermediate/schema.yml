@@ -1,0 +1,23 @@
+version: 2
+
+models:
+  - name: int_user_journey
+    description: "Aggregated user journey profile combining lifecycle events and transaction metrics."
+    columns:
+      - name: user_id
+        description: "Primary key for user journey record."
+        tests:
+          - not_null
+          - unique
+      - name: registered_at
+        description: "Registration timestamp."
+        tests:
+          - not_null
+      - name: has_performed_event
+        description: "Flag indicating whether user triggered at least one telemetry event."
+        tests:
+          - not_null
+      - name: has_converted_paying
+        description: "Flag indicating whether user made at least one successful payment."
+        tests:
+          - not_null

@@ -1,0 +1,52 @@
+name: Daily Business Analytics Pipeline
+
+on:
+  schedule:
+    - cron: '0 9 * * *'  # 06:00 BRT / 09:00 UTC
+  workflow_dispatch:
+
+jobs:
+  pipeline:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r pipeline/requirements.txt
+
+      - name: Extract data
+        run: python pipeline/extract.py
+        env:
+          DB_DRIVER: ${{ secrets.DB_DRIVER }}
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASS: ${{ secrets.DB_PASS }}
+          DUCKDB_PATH: ./analytics.duckdb
+          RAW_DATA_PATH: ./data/raw
+
+      - name: Transform with dbt
+        run: |
+          cd pipeline/analytics
+          dbt run --profiles-dir .
+          dbt test --profiles-dir .
+        env:
+          DUCKDB_PATH: ../analytics.duckdb
+
+      - name: Push metrics to Grafana Cloud
+        run: python pipeline/push_metrics.py
+        env:
+          DUCKDB_PATH: ./analytics.duckdb
+          GRAFANA_PROMETHEUS_URL: ${{ secrets.GRAFANA_PROMETHEUS_URL }}
+          GRAFANA_INSTANCE_ID: ${{ secrets.GRAFANA_INSTANCE_ID }}
+          GRAFANA_API_KEY: ${{ secrets.GRAFANA_API_KEY }}

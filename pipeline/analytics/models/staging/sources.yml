@@ -1,0 +1,52 @@
+version: 2
+
+sources:
+  - name: raw
+    description: "Raw relational data snapshots extracted from production database into DuckDB."
+    tables:
+      - name: raw_users
+        description: "Raw user registrations and profile metadata."
+        columns:
+          - name: id
+            description: "Primary key for user record."
+            tests:
+              - not_null
+              - unique
+          - name: created_at
+            description: "Timestamp when user was registered."
+            tests:
+              - not_null
+
+      - name: raw_analytics_events
+        description: "Raw client and backend telemetry events."
+        columns:
+          - name: id
+            description: "Unique event identifier."
+            tests:
+              - not_null
+              - unique
+          - name: event_name
+            description: "Name of the business or interaction event."
+            tests:
+              - not_null
+          - name: created_at
+            description: "Timestamp when event occurred."
+            tests:
+              - not_null
+
+      - name: raw_transactions
+        description: "Raw financial transactions, bookings, and payments."
+        columns:
+          - name: id
+            description: "Unique transaction identifier."
+            tests:
+              - not_null
+              - unique
+          - name: amount
+            description: "Monetary amount for transaction."
+            tests:
+              - not_null
+          - name: created_at
+            description: "Timestamp when transaction was recorded."
+            tests:
+              - not_null

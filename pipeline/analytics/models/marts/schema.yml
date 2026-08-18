@@ -1,0 +1,64 @@
+version: 2
+
+models:
+  - name: mart_user_growth
+    description: "Daily active user counts (DAU/WAU/MAU) and registration growth metrics."
+    columns:
+      - name: metric_date
+        description: "Primary key date for user growth metrics."
+        tests:
+          - not_null
+          - unique
+      - name: dau_count
+        description: "Daily active users count."
+        tests:
+          - not_null
+      - name: mau_count
+        description: "Monthly active users count (30d rolling)."
+        tests:
+          - not_null
+
+  - name: mart_event_funnel
+    description: "Generic business event conversion funnel with step drop-offs."
+    columns:
+      - name: funnel_step_order
+        description: "Sequential ordering index of funnel steps."
+        tests:
+          - not_null
+          - unique
+      - name: event_name
+        description: "Event telemetry name."
+        tests:
+          - not_null
+      - name: unique_users_count
+        description: "Count of unique users reaching this funnel step."
+        tests:
+          - not_null
+
+  - name: mart_revenue
+    description: "Daily revenue performance and Average Order Value (AOV) metrics."
+    columns:
+      - name: metric_date
+        description: "Transaction aggregation date."
+        tests:
+          - not_null
+      - name: daily_gross_revenue
+        description: "Daily gross revenue amount."
+        tests:
+          - not_null
+
+  - name: mart_platform_split
+    description: "Client platform segmentation metrics (iOS, Android, Web)."
+    columns:
+      - name: metric_date
+        description: "Metric date."
+        tests:
+          - not_null
+      - name: platform
+        description: "Operating system or client platform."
+        tests:
+          - not_null
+      - name: active_users_count
+        description: "Daily active users on this platform."
+        tests:
+          - not_null

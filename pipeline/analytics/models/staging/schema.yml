@@ -1,0 +1,49 @@
+version: 2
+
+models:
+  - name: stg_users
+    description: "Standardized user accounts dimension."
+    columns:
+      - name: user_id
+        description: "Primary key for standardized user record."
+        tests:
+          - not_null
+          - unique
+      - name: registration_date
+        description: "Date when user account was created."
+        tests:
+          - not_null
+
+  - name: stg_events
+    description: "Standardized client and telemetry event stream."
+    columns:
+      - name: event_id
+        description: "Unique event identifier."
+        tests:
+          - not_null
+          - unique
+      - name: event_name
+        description: "Telemetry event action name."
+        tests:
+          - not_null
+      - name: event_date
+        description: "Date when event was triggered."
+        tests:
+          - not_null
+
+  - name: stg_transactions
+    description: "Standardized monetary transactions."
+    columns:
+      - name: transaction_id
+        description: "Primary key for transaction."
+        tests:
+          - not_null
+          - unique
+      - name: amount
+        description: "Transaction amount."
+        tests:
+          - not_null
+      - name: transaction_date
+        description: "Date when transaction occurred."
+        tests:
+          - not_null
