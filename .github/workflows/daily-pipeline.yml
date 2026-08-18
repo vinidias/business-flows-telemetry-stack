@@ -44,6 +44,7 @@ jobs:
           DUCKDB_PATH: ../../analytics.duckdb
 
       - name: Push metrics to Grafana Cloud
+        continue-on-error: true
         run: python pipeline/push_metrics.py
         env:
           DUCKDB_PATH: ./analytics.duckdb

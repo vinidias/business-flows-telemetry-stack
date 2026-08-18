@@ -173,13 +173,20 @@ def generate_mock_dataset(raw_data_dir: Path) -> dict:
     user_ids = list(range(1, 51))
     users_data = []
     platforms = ["ios", "android", "web"]
+    roles = ["customer", "provider", "admin"]
+    statuses = ["active", "pending", "inactive"]
+    
     for u_id in user_ids:
         reg_time = now - datetime.timedelta(days=random.randint(0, 30), hours=random.randint(0, 23))
         users_data.append({
             "id": u_id,
+            "user_id": str(u_id),
             "name": f"User {u_id}",
             "email": f"user{u_id}@example.com",
+            "role": random.choice(roles),
+            "status": random.choice(statuses),
             "platform": random.choice(platforms),
+            "country_code": "BR",
             "created_at": reg_time,
             "updated_at": reg_time,
         })
@@ -190,16 +197,21 @@ def generate_mock_dataset(raw_data_dir: Path) -> dict:
     # 2. Analytics Events
     events_data = []
     event_names = ["screen_view", "button_click", "signup_started", "signup_completed", "item_viewed", "checkout_started", "purchase_completed"]
+    event_categories = ["navigation", "interaction", "conversion"]
+    
     for e_id in range(1, 301):
         ev_time = now - datetime.timedelta(days=random.randint(0, 14), hours=random.randint(0, 23), minutes=random.randint(0, 59))
         u_id = random.choice(user_ids)
         ev_name = random.choice(event_names)
         events_data.append({
             "id": e_id,
-            "user_id": u_id,
+            "user_id": str(u_id),
+            "session_id": f"sess_{random.randint(100, 999)}",
             "event_name": ev_name,
+            "event_category": random.choice(event_categories),
             "platform": random.choice(platforms),
-            "properties": '{"source": "demo"}',
+            "app_version": "1.0.0",
+            "properties_json": '{"source": "demo"}',
             "created_at": ev_time,
         })
     df_events = pd.DataFrame(events_data)
@@ -209,18 +221,21 @@ def generate_mock_dataset(raw_data_dir: Path) -> dict:
     # 3. Transactions
     tx_data = []
     pay_methods = ["credit_card", "pix", "paypal"]
+    statuses_tx = ["completed", "pending", "failed"]
+    
     for t_id in range(1, 61):
         tx_time = now - datetime.timedelta(days=random.randint(0, 14), hours=random.randint(0, 23))
         u_id = random.choice(user_ids)
         amount = round(random.uniform(15.0, 350.0), 2)
         tx_data.append({
             "id": t_id,
-            "user_id": u_id,
+            "user_id": str(u_id),
             "amount": amount,
             "currency": "BRL",
-            "status": "completed",
+            "status": random.choice(statuses_tx),
             "payment_method": random.choice(pay_methods),
             "created_at": tx_time,
+            "updated_at": tx_time,
         })
     df_tx = pd.DataFrame(tx_data)
     tx_parquet = raw_data_dir / "transactions.parquet"

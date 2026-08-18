@@ -5,13 +5,15 @@ PyMySQL>=1.1.0
 psycopg2-binary>=2.9.9
 
 # Data Processing & Storage (OLAP)
-pandas>=2.0.0
-pyarrow>=14.0.0
-duckdb>=0.9.0
+# duckdb and dbt-duckdb MUST be pinned together — check compatibility matrix:
+# https://github.com/duckdb/dbt-duckdb#compatibility
+pandas>=2.0.0,<3.0.0
+pyarrow>=14.0.0,<20.0.0
+duckdb>=1.1.0,<2.0.0
 
 # Data Transformation & Testing
-dbt-core>=1.7.0
-dbt-duckdb>=1.7.0
+dbt-core>=1.9.0,<2.0.0
+dbt-duckdb>=1.9.0,<2.0.0
 
 # Telemetry Push & HTTP Clients
 requests>=2.31.0
