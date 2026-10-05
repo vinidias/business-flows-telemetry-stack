@@ -203,6 +203,35 @@ run `python pipeline/pipeline.py`. The dashboard labels demo data explicitly.
 The full pipeline also needs event and transaction source tables; the focused
 consultant command needs only `users` and optionally `categories(id, name)`.
 
+### Extract over SSH and publish a private report
+
+`pipeline/ssh_report.py` reads only consultant reporting fields through the
+existing SSH connection, using the server's Laravel database configuration.
+It supports the production `users.formacao` area field as well as category IDs.
+No database credentials need to be copied to the laptop. The export excludes
+soft-deleted users and stores an isolated DuckDB snapshot under the ignored
+`pipeline/data/snapshots/` directory. This restricted snapshot includes the
+individual registration table `consultant_registration_details`; it is not
+uploaded to GitHub or sent to Ark.
+
+Install `pipeline/requirements-ssh.txt`, then run from the repository root:
+
+```powershell
+.\.venv\Scripts\python.exe pipeline\ssh_report.py --host YOUR_HOST --port 2222 --user YOUR_USER --key PATH_TO_KEY --known-hosts PATH_TO_KNOWN_HOSTS --app-root /path/to/laravel
+.\.venv\Scripts\python.exe pipeline\deploy_report.py --host YOUR_HOST --port 2222 --user YOUR_USER --key PATH_TO_KEY --known-hosts PATH_TO_KNOWN_HOSTS --app-root /path/to/laravel
+```
+
+The second command publishes only the latest validated real snapshot, younger
+than 24 hours, whose report checksum and DuckDB snapshot identity match. It
+creates a versioned artifact outside public storage and switches a private
+manifest atomically. Backups are retained and failed authorization checks roll
+back the activation. The report is served at
+`/admin/analytics/consultant-registrations` using existing `auth`, `verified`,
+and `role:admin` middleware. Browsers must log in with an administrator account.
+The whole report is private and uses `Cache-Control: private, no-store`.
+The extraction timestamp is visible: this is a snapshot, not a live query;
+rerun extraction and deployment to refresh it. No automatic schedule is installed.
+
 ### 4. Connect Grafana Cloud
 
 1. Create free account at [grafana.com/grafana/cloud](https://grafana.com/grafana/cloud)

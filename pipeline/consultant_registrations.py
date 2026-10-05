@@ -37,11 +37,11 @@ def main() -> int:
             )
             return 1
         columns = {column["name"] for column in inspect(engine).get_columns("users")}
-        required = {"professional_category_id", "professional_registration"}
-        if not required.issubset(columns):
+        required = {"professional_registration"}
+        if not required.issubset(columns) or not {"professional_category_id", "formacao"}.intersection(columns):
             print(
                 "A tabela users não contém os campos de especialidade e registro profissional: "
-                + ", ".join(sorted(required - columns)),
+                + ", ".join(sorted(required - columns)) + " (área: professional_category_id ou formacao)",
                 file=sys.stderr,
             )
             return 1

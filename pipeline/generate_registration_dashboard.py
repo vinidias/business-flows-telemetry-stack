@@ -117,7 +117,7 @@ def make_table(rows: list[tuple], first_heading: str) -> str:
     )
 
 
-def render(rows: list[dict], source: str, days: int = 30, details_rows=None) -> str:
+def render(rows: list[dict], source: str, days: int = 30, details_rows=None, generated_at=None) -> str:
     totals = [sum(int(row[field] or 0) for row in rows) for field in
               ("registrations", "crm", "other", "missing")]
     statuses = defaultdict(int)
@@ -160,6 +160,7 @@ button{{cursor:pointer}} button:disabled{{opacity:.45;cursor:default}} #registra
 </style></head><body><main>
 <h1>Cadastros de consultores</h1><p>Últimos {days} dias · agregado por área de formação.</p>
 <span class="source">{source_label}</span><p>{html.escape(note)}</p>
+<p>Extração: {html.escape(generated_at or 'horário não disponível')} · Retrato da base no momento da extração.</p>
 <div class="cards">{cards}</div>
 <section><h2>Por área de formação</h2><div class="scroll">{make_table(aggregate(rows, 'category'), 'Área')}</div></section>
 <section><h2>Por dia</h2><div class="scroll">{make_table(aggregate(rows, 'date'), 'Data')}</div></section>

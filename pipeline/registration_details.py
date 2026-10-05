@@ -28,11 +28,13 @@ def prepare_details(users, category_names=None, documents=None, pix=None):
         if "is_email_verified" not in user and "email_verified_at" in user:
             email = "unverified" if pd.isna(user["email_verified_at"]) else "verified"
         registration = user.get("professional_registration")
+        formation = user.get("formacao")
+        area = str(formation).strip() if not pd.isna(formation) else ""
         status = str(user.get("status", "unknown")).lower()
         rows.append({
             "user_id": str(user["id"]),
             "registration": "" if pd.isna(registration) else str(registration),
-            "category": names.get(category_id, f"Área #{category_id}" if category_id else "Não informada"),
+            "category": area or names.get(category_id, f"Área #{category_id}" if category_id else "Não informada"),
             "registered_at": str(user["created_at"]),
             "status": {"1": "active", "0": "inactive", "1.0": "active", "0.0": "inactive", "true": "active", "false": "inactive"}.get(status, status),
             "documents": documents.get(str(user["id"]), "unknown"),
@@ -56,7 +58,7 @@ def extract_details(engine):
         return pd.read_sql(query, engine)
 
     users = read("users", ["id", "user_type", "role", "status", "created_at",
-                           "professional_registration", "professional_category_id",
+                           "professional_registration", "professional_category_id", "formacao",
                            "is_email_verified", "email_verified_at"])
     names = {}
     if "categories" in tables:

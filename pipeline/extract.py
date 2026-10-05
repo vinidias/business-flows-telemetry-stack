@@ -140,6 +140,9 @@ def prepare_user_snapshot(df: pd.DataFrame, category_names: Optional[dict] = Non
         return names.get(key, f"Área #{key}")
 
     category_labels = category_ids.map(category_label)
+    if "formacao" in df:
+        formation = field("formacao").fillna("").astype(str).str.strip()
+        category_labels = category_labels.where(formation.eq(""), formation)
     crm = numbers.str.match(r"(?i)^CRM(?:\b|[-/\s])") & numbers.str.contains(r"\d")
     present = numbers.ne("")
     return pd.DataFrame({
@@ -159,7 +162,7 @@ def prepare_user_snapshot(df: pd.DataFrame, category_names: Optional[dict] = Non
         ),
         "registration_number_present": present,
         "professional_fields_available": (
-            "professional_category_id" in df and "professional_registration" in df
+            ("professional_category_id" in df or "formacao" in df) and "professional_registration" in df
         ),
     })
 
@@ -171,7 +174,7 @@ def extract_users_for_analytics(engine: Engine) -> pd.DataFrame:
     allowed = (
         "id", "user_id", "user_type", "role", "status", "platform",
         "country_code", "created_at", "updated_at",
-        "professional_category_id", "professional_registration",
+        "professional_category_id", "professional_registration", "formacao",
     )
     quote = engine.dialect.identifier_preparer.quote
     selected = [quote(name) for name in allowed if name in available]
