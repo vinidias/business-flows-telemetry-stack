@@ -60,16 +60,20 @@ class TestGenerateMockDataset:
         expected_cols = {
             "id",
             "user_id",
-            "name",
-            "email",
             "role",
             "status",
             "platform",
             "country_code",
             "created_at",
             "updated_at",
+            "professional_category_id",
+            "professional_category_name",
+            "registration_kind",
+            "professional_fields_available",
         }
         assert expected_cols.issubset(set(df_users.columns))
+        assert "email" not in df_users.columns
+        assert "professional_registration" not in df_users.columns
         assert len(df_users) == 50
         assert df_users["id"].nunique() == 50
         assert df_users["country_code"].iloc[0] == "BR"
@@ -151,6 +155,23 @@ class TestExtractTableToParquet:
 
         parquet_path = extract_table_to_parquet(engine, "non_existent_table", tmp_path)
         assert parquet_path is None
+
+    def test_users_snapshot_classifies_crm_without_persisting_number(self, tmp_path):
+        engine = create_engine(f"sqlite:///{tmp_path / 'users.db'}")
+        with engine.begin() as conn:
+            conn.execute(text("CREATE TABLE users (id INT, user_type TEXT, status INT, professional_category_id INT, professional_registration TEXT, email TEXT, created_at TEXT)"))
+            conn.execute(text("CREATE TABLE categories (id INT, name TEXT)"))
+            conn.execute(text("INSERT INTO categories VALUES (7, 'Veterinária')"))
+            conn.execute(text("INSERT INTO users VALUES (1, 'provider', 1, 7, 'CRM 12345/SP', 'secret@example.test', '2026-10-01'), (2, 'provider', 0, 7, 'CREA 98765', 'other@example.test', '2026-10-01')"))
+        path = extract_table_to_parquet(engine, "users", tmp_path)
+        assert path is not None
+        snapshot = pd.read_parquet(path)
+        assert list(snapshot.registration_kind) == ["crm", "other"]
+        assert list(snapshot.professional_category_name) == ["Veterinária", "Veterinária"]
+        assert "professional_registration" not in snapshot.columns
+        assert "email" not in snapshot.columns
+        assert b"12345" not in path.read_bytes()
+        assert b"secret@example.test" not in path.read_bytes()
 
 
 class TestRegisterInDuckDB:

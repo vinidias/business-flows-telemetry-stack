@@ -6,7 +6,8 @@ Executes the full telemetry pipeline workflow:
   1. Data Extraction (MySQL/Postgres -> Parquet -> DuckDB)
   2. Data Modeling & Transformation (dbt run)
   3. Data Quality Testing (dbt test)
-  4. Telemetry Metrics Push (DuckDB marts -> Grafana Cloud Prometheus)
+  4. Local dashboards
+  5. Optional telemetry metrics push (DuckDB marts -> Grafana Cloud Prometheus)
 
 Usage:
     python pipeline.py
@@ -86,6 +87,8 @@ def main() -> None:
     pipeline_dir = Path(__file__).resolve().parent
     analytics_dir = pipeline_dir / "analytics"
     python_exe = sys.executable
+    dbt_exe = Path(python_exe).with_name("dbt.exe" if os.name == "nt" else "dbt")
+    dbt_command = str(dbt_exe) if dbt_exe.exists() else "dbt"
 
     logger.info("=================================================================")
     logger.info("   BUSINESS FLOWS TELEMETRY STACK - PIPELINE EXECUTION START    ")
@@ -100,22 +103,27 @@ def main() -> None:
         },
         {
             "name": "2. dbt Transform (dbt run)",
-            "cmd": ["dbt", "run", "--profiles-dir", "."],
+            "cmd": [dbt_command, "run", "--profiles-dir", "."],
             "cwd": analytics_dir,
         },
         {
             "name": "3. dbt Data Quality Tests (dbt test)",
-            "cmd": ["dbt", "test", "--profiles-dir", "."],
+            "cmd": [dbt_command, "test", "--profiles-dir", "."],
             "cwd": analytics_dir,
         },
         {
-            "name": "4. Push Telemetry Metrics to Grafana Cloud",
-            "cmd": [python_exe, str(pipeline_dir / "push_metrics.py")],
+            "name": "4. Generate Local HTML Dashboard",
+            "cmd": [python_exe, str(pipeline_dir / "generate_dashboard.py")],
             "cwd": pipeline_dir,
         },
         {
-            "name": "5. Generate Local HTML Dashboard",
-            "cmd": [python_exe, str(pipeline_dir / "generate_dashboard.py")],
+            "name": "5. Generate Consultant Registration Dashboard",
+            "cmd": [python_exe, str(pipeline_dir / "generate_registration_dashboard.py")],
+            "cwd": pipeline_dir,
+        },
+        {
+            "name": "6. Push Telemetry Metrics to Grafana Cloud",
+            "cmd": [python_exe, str(pipeline_dir / "push_metrics.py")],
             "cwd": pipeline_dir,
         },
     ]

@@ -14,6 +14,7 @@ import os
 import sys
 import time
 import logging
+import json
 from pathlib import Path
 from typing import List, Optional
 from urllib.parse import quote_plus
@@ -119,6 +120,75 @@ def get_target_tables(engine: Engine) -> List[str]:
     return available_tables
 
 
+def prepare_user_snapshot(df: pd.DataFrame, category_names: Optional[dict] = None) -> pd.DataFrame:
+    """Keep only reporting fields; never persist a professional registration number."""
+    if "id" not in df or "created_at" not in df:
+        raise ValueError("users must contain id and created_at")
+
+    def field(name: str, default=None) -> pd.Series:
+        return df[name] if name in df else pd.Series(default, index=df.index)
+
+    roles = field("user_type") if "user_type" in df else field("role")
+    numbers = field("professional_registration").fillna("").astype(str).str.strip()
+    category_ids = field("professional_category_id")
+    names = category_names or {}
+    def category_label(value):
+        if pd.isna(value):
+            return "Não informada"
+        key = str(int(value)) if isinstance(value, (int, float)) and float(value).is_integer() else str(value)
+        return names.get(key, f"Área #{key}")
+
+    category_labels = category_ids.map(category_label)
+    crm = numbers.str.match(r"(?i)^CRM(?:\b|[-/\s])") & numbers.str.contains(r"\d")
+    present = numbers.ne("")
+    return pd.DataFrame({
+        "id": df["id"],
+        "user_id": field("user_id").fillna(df["id"]).astype(str),
+        "role": roles.fillna("unknown").astype(str),
+        "status": field("status", "unknown").fillna("unknown").astype(str),
+        "platform": field("platform", "unknown").fillna("unknown").astype(str),
+        "country_code": field("country_code", "BR").fillna("BR").astype(str),
+        "created_at": df["created_at"],
+        "updated_at": field("updated_at").fillna(df["created_at"]),
+        "professional_category_id": category_ids,
+        "professional_category_name": category_labels,
+        "registration_kind": pd.Series(
+            ["crm" if is_crm else "other" if has_number else "missing"
+             for is_crm, has_number in zip(crm, present)], index=df.index
+        ),
+        "registration_number_present": present,
+        "professional_fields_available": (
+            "professional_category_id" in df and "professional_registration" in df
+        ),
+    })
+
+
+def extract_users_for_analytics(engine: Engine) -> pd.DataFrame:
+    """Project the source columns before export and drop raw registration values."""
+    inspector = inspect(engine)
+    available = {item["name"] for item in inspector.get_columns("users")}
+    allowed = (
+        "id", "user_id", "user_type", "role", "status", "platform",
+        "country_code", "created_at", "updated_at",
+        "professional_category_id", "professional_registration",
+    )
+    quote = engine.dialect.identifier_preparer.quote
+    selected = [quote(name) for name in allowed if name in available]
+    if "id" not in available or "created_at" not in available:
+        raise ValueError("users must contain id and created_at")
+    df = pd.read_sql(f"SELECT {', '.join(selected)} FROM {quote('users')}", con=engine)
+
+    category_names = {}
+    if "professional_category_id" in available and "categories" in inspector.get_table_names():
+        category_columns = {item["name"] for item in inspector.get_columns("categories")}
+        if {"id", "name"}.issubset(category_columns):
+            categories = pd.read_sql(
+                f"SELECT {quote('id')}, {quote('name')} FROM {quote('categories')}", con=engine
+            )
+            category_names = {str(row.id): str(row.name) for row in categories.itertuples()}
+    return prepare_user_snapshot(df, category_names)
+
+
 def extract_table_to_parquet(
     engine: Engine,
     table_name: str,
@@ -139,10 +209,12 @@ def extract_table_to_parquet(
     parquet_path = output_dir / f"{table_name}.parquet"
     
     logger.info("Extracting table: '%s'...", table_name)
-    query = f"SELECT * FROM {table_name}"
-    
     try:
-        df = pd.read_sql(query, con=engine)
+        if table_name == "users":
+            df = extract_users_for_analytics(engine)
+        else:
+            quote = engine.dialect.identifier_preparer.quote
+            df = pd.read_sql(f"SELECT * FROM {quote(table_name)}", con=engine)
         elapsed = time.time() - start_time
         logger.info(
             "Extracted %d rows and %d columns from '%s' in %.2fs",
@@ -180,19 +252,26 @@ def generate_mock_dataset(raw_data_dir: Path) -> dict:
     
     for u_id in user_ids:
         reg_time = now - datetime.timedelta(days=random.randint(0, 30), hours=random.randint(0, 23))
+        role = random.choice(roles)
         users_data.append({
             "id": u_id,
             "user_id": str(u_id),
             "name": f"User {u_id}",
             "email": f"user{u_id}@example.com",
-            "role": random.choice(roles),
+            "role": role,
             "status": random.choice(statuses),
             "platform": random.choice(platforms),
             "country_code": "BR",
+            "professional_category_id": (u_id % 3) + 1 if role == "provider" else None,
+            "professional_registration": (
+                f"CRM SP {10000 + u_id}" if u_id % 3 == 0 else f"CREA {10000 + u_id}"
+            ) if role == "provider" and u_id % 5 else None,
             "created_at": reg_time,
             "updated_at": reg_time,
         })
-    df_users = pd.DataFrame(users_data)
+    df_users = prepare_user_snapshot(
+        pd.DataFrame(users_data), {"1": "Agronomia", "2": "Veterinária", "3": "Medicina"}
+    )
     users_parquet = raw_data_dir / "users.parquet"
     df_users.to_parquet(users_parquet, engine="pyarrow", index=False)
     
@@ -320,6 +399,11 @@ def run_extraction() -> bool:
 
     if extracted_files:
         register_in_duckdb(extracted_files, duckdb_file)
+        source_marker = raw_data_dir.parent / "source.json"
+        source_marker.write_text(
+            json.dumps({"source": "synthetic_demo" if use_mock else "database"}),
+            encoding="utf-8",
+        )
         logger.info("=== Extraction completed successfully (%d tables processed) ===", len(extracted_files))
         return True
     else:

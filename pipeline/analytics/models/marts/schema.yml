@@ -1,6 +1,19 @@
 version: 2
 
 models:
+  - name: mart_consultant_registrations
+    description: "Consultant signups by day, professional area and current status; CRM values are never stored."
+    columns:
+      - name: metric_date
+        tests:
+          - not_null
+      - name: professional_category_name
+        tests:
+          - not_null
+      - name: registrations_count
+        tests:
+          - not_null
+
   - name: mart_user_growth
     description: "Daily active user counts (DAU/WAU/MAU) and registration growth metrics."
     columns:

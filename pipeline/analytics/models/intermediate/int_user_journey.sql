@@ -12,7 +12,6 @@ Description: Aggregates user lifetime activity across events and transactions
 WITH users_base AS (
     SELECT
         user_id,
-        email,
         user_role,
         user_status,
         platform AS registration_platform,
@@ -61,7 +60,6 @@ user_transactions_summary AS (
 joined_journey AS (
     SELECT
         u.user_id,
-        u.email,
         u.user_role,
         u.user_status,
         u.registration_platform,
@@ -105,7 +103,6 @@ joined_journey AS (
 -- Final SELECT: User journey summary
 SELECT
     user_id,
-    email,
     user_role,
     user_status,
     registration_platform,

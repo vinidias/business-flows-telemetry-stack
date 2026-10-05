@@ -167,6 +167,31 @@ pip install -r requirements.txt
 python pipeline.py
 ```
 
+### Local consultant registration report
+
+The consultant app sends `professional_category_id` and
+`professional_registration` during sign-up. To report on real registrations,
+configure `pipeline/.env` with read-only MySQL/PostgreSQL credentials and run:
+
+```powershell
+.\.venv\Scripts\python.exe pipeline\consultant_registrations.py
+```
+
+Open `pipeline/registration_dashboard.html` afterward. The report groups
+consultant registrations from the last 30 days by professional area and signup
+date, and shows current account status and counts for CRM, other professional
+registration, or no number. "CRM informado" means the value begins with CRM
+and contains digits; it does not validate the registration with a council.
+The extractor discards the raw registration value and email before writing
+Parquet or DuckDB. If the `users` table lacks the two professional fields,
+the real-data command exits with an error instead of displaying invented
+statistics.
+
+For a local demonstration with generated data, set `USE_MOCK_DATA=true` and
+run `python pipeline/pipeline.py`. The dashboard labels demo data explicitly.
+The full pipeline also needs event and transaction source tables; the focused
+consultant command needs only `users` and optionally `categories(id, name)`.
+
 ### 4. Connect Grafana Cloud
 
 1. Create free account at [grafana.com/grafana/cloud](https://grafana.com/grafana/cloud)
