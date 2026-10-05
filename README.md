@@ -182,8 +182,19 @@ consultant registrations from the last 30 days by professional area and signup
 date, and shows current account status and counts for CRM, other professional
 registration, or no number. "CRM informado" means the value begins with CRM
 and contains digits; it does not validate the registration with a council.
-The extractor discards the raw registration value and email before writing
-Parquet or DuckDB. If the `users` table lacks the two professional fields,
+Aggregate user snapshots discard the raw registration value and email before
+writing Parquet or DuckDB. The final searchable card uses a separate local
+`pipeline/data/registration_details.json` export containing the professional
+registration number requested for this report. That file and the generated HTML
+are excluded from Git; the detail records are not sent to Grafana or Ark.
+The card supports area, date range, status, and document/email/Pix verification
+filters. Documents follow the app rule: all active mandatory provider documents
+must be approved, excluding soft-deleted records. The email verification flag
+takes precedence over the timestamp. Pix is unavailable unless an explicit
+`banks.is_pix_verified` or `banks.pix_verified_at` field exists; an active bank
+account or a filled key does not imply verification. Numeric account status 0
+means inactive and 1 means active.
+If the `users` table lacks the two professional fields,
 the real-data command exits with an error instead of displaying invented
 statistics.
 

@@ -35,7 +35,7 @@ standardized AS (
         LOWER(COALESCE(role, 'customer')) AS user_role,
         CASE
             WHEN CAST(status AS VARCHAR) = '1' THEN 'active'
-            WHEN CAST(status AS VARCHAR) = '0' THEN 'pending'
+            WHEN CAST(status AS VARCHAR) = '0' THEN 'inactive'
             ELSE LOWER(COALESCE(CAST(status AS VARCHAR), 'unknown'))
         END AS user_status,
         LOWER(COALESCE(platform, 'web')) AS platform,

@@ -24,6 +24,7 @@ import pandas as pd
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.engine import Engine
+from registration_details import extract_details, prepare_details, save_details
 
 # Configure logging
 logging.basicConfig(
@@ -176,7 +177,10 @@ def extract_users_for_analytics(engine: Engine) -> pd.DataFrame:
     selected = [quote(name) for name in allowed if name in available]
     if "id" not in available or "created_at" not in available:
         raise ValueError("users must contain id and created_at")
-    df = pd.read_sql(f"SELECT {', '.join(selected)} FROM {quote('users')}", con=engine)
+    query = f"SELECT {', '.join(selected)} FROM {quote('users')}"
+    if "deleted_at" in available:
+        query += f" WHERE {quote('deleted_at')} IS NULL"
+    df = pd.read_sql(query, con=engine)
 
     category_names = {}
     if "professional_category_id" in available and "categories" in inspector.get_table_names():
@@ -226,6 +230,8 @@ def extract_table_to_parquet(
         
         # Save to Parquet format (Snappy compression for fast columnar reads)
         df.to_parquet(parquet_path, engine="pyarrow", index=False, compression="snappy")
+        if table_name == "users":
+            save_details(output_dir, extract_details(engine), "database")
         logger.info("Saved Parquet snapshot to: %s", parquet_path)
         return parquet_path
     except Exception as e:
@@ -272,6 +278,13 @@ def generate_mock_dataset(raw_data_dir: Path) -> dict:
     df_users = prepare_user_snapshot(
         pd.DataFrame(users_data), {"1": "Agronomia", "2": "Veterinária", "3": "Medicina"}
     )
+    demo_users = pd.DataFrame(users_data)
+    demo_users["is_email_verified"] = [int(uid % 3 != 0) for uid in user_ids]
+    save_details(raw_data_dir, prepare_details(
+        demo_users, {"1": "Agronomia", "2": "Veterinária", "3": "Medicina"},
+        {str(uid): "verified" if uid % 2 else "unverified" for uid in user_ids},
+        {str(uid): ("verified", "unverified", "unknown")[uid % 3] for uid in user_ids},
+    ), "synthetic_demo")
     users_parquet = raw_data_dir / "users.parquet"
     df_users.to_parquet(users_parquet, engine="pyarrow", index=False)
     
